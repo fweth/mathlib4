@@ -25,29 +25,25 @@ variable {ℰ : Type u} [Category.{v} ℰ]
 
 namespace LeftRepresentable
 
-variable (F : (ℰ × ℰ)ᵒᵖ ⥤ Type (max u v))
+variable (F : ℰᵒᵖ ⥤ ℰᵒᵖ ⥤ Type (max u v))
 
-abbrev fixedLeft (B : ℰ) : ℰᵒᵖ ⥤ Type (max u v) :=
-  (curryObj ((prodOpEquiv ℰ).inverse ⋙ F)).obj (op B)
+variable {F} {B PB : ℰ} (hPB : (F.obj (op B)).RepresentableBy PB)
+  {C PC : ℰ} (hPC : (F.obj (op C)).RepresentableBy PC)
 
-def curryObj' : ℰᵒᵖ ⥤ ℰᵒᵖ ⥤ Type (max u v) := curryObj ((prodOpEquiv ℰ).inverse ⋙ F)
+abbrev uEl hP := hP.homEquiv (𝟙 PB)
 
-variable {F} {B PB : ℰ} (hPB : (fixedLeft F B).RepresentableBy PB)
-  {C PC : ℰ} (hPC : ((curryObj' F).obj (op C)).RepresentableBy PC)
-
-/-- The morphism induced by a morphism between the base objects. -/
 def Pmap (h : B ⟶ C) : PC ⟶ PB :=
-  hPB.homEquiv.symm (F.map (h ×ₘ 𝟙 PC).op (hPC.homEquiv (𝟙 PC)))
+  hPB.homEquiv.symm ((F.map h.op).app (op PC) uElC)
 
-lemma map_universal (h : B ⟶ C) :
-  F.map (𝟙 B ×ₘ (Pmap hPB hPC h)).op (hPB.homEquiv (𝟙 PB))
-    = F.map (h ×ₘ 𝟙 PC).op (hPC.homEquiv (𝟙 PC)) := by
+@[simp]
+lemma Pmap_universal (h : B ⟶ C) :
+    (F.obj (op B)).map (Pmap hPB hPC h).op (hPB.homEquiv (𝟙 PB)) =
+    (F.map h.op).app (op PC) (hPC.homEquiv (𝟙 PC)) := by
   calc
-    _ = (fixedLeft F B).map (Pmap hPB hPC h).op (hPB.homEquiv (𝟙 PB)) := by rfl
-    _ = F.map (h ×ₘ 𝟙 PC).op (hPC.homEquiv (𝟙 PC)) := by
-      rw [← hPB.homEquiv_eq, Pmap, hPB.homEquiv.apply_symm_apply]
+    _ = hPB.homEquiv (Pmap hPB hPC h) := by rw [← hPB.homEquiv_eq]
+    _ = (F.map h.op).app (op PC) (hPC.homEquiv (𝟙 PC)) := by simp [Pmap]
 
-variable {D PD : ℰ} (hPD : ((curryObj' F).obj (op D)).RepresentableBy PD)
+variable {D PD : ℰ} (hPD : (F.obj (op D)).RepresentableBy PD)
 
 lemma comm {PB PC : ℰ} (f : B ⟶ C) (Pf : PC ⟶ PB) :
     (f ×ₘ 𝟙 PB).op ≫ (𝟙 B ×ₘ Pf).op = (𝟙 C ×ₘ Pf).op ≫ (f ×ₘ 𝟙 PC).op :=
@@ -55,22 +51,43 @@ lemma comm {PB PC : ℰ} (f : B ⟶ C) (Pf : PC ⟶ PB) :
 
 lemma compose (h : B ⟶ C) (h' : C ⟶ D) :
     Pmap hPB hPD (h ≫ h') = Pmap hPC hPD h' ≫ Pmap hPB hPC h := by
-  let F' := (prodOpEquiv ℰ).inverse ⋙ F
   let Ph := Pmap hPB hPC h
   let Ph' := Pmap hPC hPD h'
   apply hPB.homEquiv.injective
   calc
-    _ = F.map ((h ×ₘ 𝟙 _) ≫ (h' ×ₘ 𝟙 _)).op (hPD.homEquiv (𝟙 PD)) := by unfold Pmap; simp
-    _ = F.map ((h' ×ₘ 𝟙 _).op ≫ (h ×ₘ 𝟙 _).op) (hPD.homEquiv (𝟙 PD)) := by rw[op_comp]
-    _ = F.map ((𝟙 _ ×ₘ Ph').op ≫ (h ×ₘ 𝟙 _).op) (hPC.homEquiv (𝟙 PC)) := by
-      rw[FunctorToTypes.map_comp_apply, ← map_universal, ← FunctorToTypes.map_comp_apply];
-    _ = F.map ((h ×ₘ 𝟙 _).op ≫ (𝟙 _ ×ₘ Ph').op) (hPC.homEquiv (𝟙 PC)) := by rw[comm]
-    _ = F.map ((𝟙 _ ×ₘ Ph).op ≫ (𝟙 _ ×ₘ Ph').op) (hPB.homEquiv (𝟙 PB)) := by
-      rw[FunctorToTypes.map_comp_apply, ← map_universal, ← FunctorToTypes.map_comp_apply]
-    _ = F.map (𝟙 _ ×ₘ Ph' ≫ Ph).op (hPB.homEquiv (𝟙 PB)) := by rw[comm_op]; simp
-    _ = ((curryObj' F).obj _).map (Ph' ≫ Ph).op (hPB.homEquiv (𝟙 PB)) := by
-      rw[prod_comp, comp_id, op_comp]; simp only [curryObj]
-    _ = hPB.homEquiv (Ph' ≫ Ph) := by rw[← hPB.homEquiv_eq]
+    _ = (F.map (h ≫ h').op).app (op PD) (hPD.homEquiv (𝟙 PD)) := by simp [Pmap]
+    _ = (F.map h.op).app (op PD) ((F.map h'.op).app (op PD) (hPD.homEquiv (𝟙 PD))) := by simp
+    _ = (F.map h.op).app (op PD)
+          ((F.obj (op C)).map (Pmap hPC hPD h').op (hPC.homEquiv (𝟙 PC))) := by
+      simpa [Ph'] using
+        congrArg (fun t => (F.map h.op).app (op PD) t) ((Pmap_universal hPC hPD h').symm)
+    _ = (F.obj (op B)).map Ph'.op
+          ((F.map h.op).app (op PC) (hPC.homEquiv (𝟙 PC))) := by
+      simpa using congrArg (fun f => f (hPC.homEquiv (𝟙 PC))) ((F.map h.op).naturality Ph'.op)
+    _ = (F.obj (op B)).map Ph'.op
+          ((F.obj (op B)).map Ph.op (hPB.homEquiv (𝟙 PB))) := by
+      have hu := (Pmap_universal (F := F) (hPB := hPB) (hPC := hPC) h)
+      have hu' := congrArg (fun t => (F.obj (op B)).map Ph'.op t) hu.symm
+      simpa [Ph] using hu'
+    _ = (F.obj (op B)).map (Ph.op ≫ Ph'.op) (hPB.homEquiv (𝟙 PB)) := by
+      simp [FunctorToTypes.map_comp_apply]
+    _ = (F.obj (op B)).map ( (Ph' ≫ Ph).op ) (hPB.homEquiv (𝟙 PB)) := by
+      simp [op_comp]
+    _ = hPB.homEquiv (Ph' ≫ Ph) := by
+      simpa [Ph, Ph'] using
+        (hPB.homEquiv_eq (Ph' ≫ Ph)).symm
+
+
+    -- _ = F.map ((h' ×ₘ 𝟙 _).op ≫ (h ×ₘ 𝟙 _).op) (hPD.homEquiv (𝟙 PD)) := by rw[op_comp]
+    -- _ = F.map ((𝟙 _ ×ₘ Ph').op ≫ (h ×ₘ 𝟙 _).op) (hPC.homEquiv (𝟙 PC)) := by
+    --   rw[FunctorToTypes.map_comp_apply, ← map_universal, ← FunctorToTypes.map_comp_apply];
+    -- _ = F.map ((h ×ₘ 𝟙 _).op ≫ (𝟙 _ ×ₘ Ph').op) (hPC.homEquiv (𝟙 PC)) := by rw[comm]
+    -- _ = F.map ((𝟙 _ ×ₘ Ph).op ≫ (𝟙 _ ×ₘ Ph').op) (hPB.homEquiv (𝟙 PB)) := by
+    --   rw[FunctorToTypes.map_comp_apply, ← map_universal, ← FunctorToTypes.map_comp_apply]
+    -- _ = F.map (𝟙 _ ×ₘ Ph' ≫ Ph).op (hPB.homEquiv (𝟙 PB)) := by rw[comm_op]; simp
+    -- _ = ((curryObj' F).obj _).map (Ph' ≫ Ph).op (hPB.homEquiv (𝟙 PB)) := by
+    --   rw[prod_comp, comp_id, op_comp]; simp only [curryObj]
+    -- _ = hPB.homEquiv (Ph' ≫ Ph) := by rw[← hPB.homEquiv_eq]
 
 /-- Let `F : ℰᵒᵖ × ℰᵒᵖ ⥤ Type`. If for each `B` we choose an object `P B` representing
 the functor `C ↦ F (B, C)`, then these choices assemble into a covariant functor `ℰᵒᵖ ⥤ ℰ`. -/
